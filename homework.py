@@ -23,7 +23,7 @@ PRACTICUM_TOKEN = os.getenv('PRACTICUM_TOKEN')
 TELEGRAM_TOKEN = os.getenv('TELEGRAM_TOKEN')
 TELEGRAM_CHAT_ID = os.getenv('TELEGRAM_CHAT_ID')
 
-RETRY_TIME = 10
+RETRY_TIME = 600
 ENDPOINT = 'https://practicum.yandex.ru/api/user_api/homework_statuses/'
 HEADERS = {'Authorization': f'OAuth {PRACTICUM_TOKEN}'}
 
@@ -35,6 +35,7 @@ HOMEWORK_STATUSES = {
 
 
 def send_message(bot, message):
+    """Отправка сообщения в телеграм."""
     logger.info('Отправлено сообщение в Телеграм')
     bot.send_message(TELEGRAM_CHAT_ID, message)
 
