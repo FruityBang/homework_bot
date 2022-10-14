@@ -12,3 +12,7 @@ class ResponseError(Exception):
 
 class ResponseMissingKey(Exception):
     pass
+
+
+class SomethingStrangeError(Exception):
+    pass
