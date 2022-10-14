@@ -1,11 +1,19 @@
-import exceptions
 import logging
 import os
 import requests
 import sys
 import telegram
 import time
+
+from http import HTTPStatus
 from dotenv import load_dotenv
+
+from exceptions import (
+    MessageSendingTrouble,
+    NotOkResponse,
+    ResponseMissingKey,
+    ResponseError
+)
 
 
 load_dotenv()
@@ -36,8 +44,14 @@ HOMEWORK_STATUSES = {
 
 def send_message(bot, message):
     """Отправка сообщения в телеграм."""
-    logger.info('Отправлено сообщение в Телеграм')
-    bot.send_message(TELEGRAM_CHAT_ID, message)
+    try:
+        bot.send_message(TELEGRAM_CHAT_ID, message)
+    except Exception as error:
+        logger.error(f'Ошибка отправки сообщения в телеграм: {error}')
+        raise MessageSendingTrouble(
+            'Ошибка отправки сообщения в телеграм')
+    else:
+        logger.info('Отправлено сообщение в Телеграм')
 
 
 def get_api_answer(current_timestamp):
@@ -45,27 +59,29 @@ def get_api_answer(current_timestamp):
     timestamp = current_timestamp or int(time.time())
     params = {'from_date': timestamp}
 
-    response = requests.get(ENDPOINT, headers=HEADERS, params=params)
-
-    if response.status_code != 200:
-        logger.error('Ошибка доступа к API. Код 300 или там 400!')
-        raise exceptions.NotOkResponse('Ошибка доступа к API')
+    logger.info('Отправка запроса к API')
+    try:
+        response = requests.get(ENDPOINT, headers=HEADERS, params=params)
+    except Exception as error:
+        logger.error(f'Ошибка получения ответа API: {error}')
+        raise ResponseError('Ошибка получения ответа API')
     else:
-        response = response.json()
-        return response
+        logger.info('Ответ API получен')
+
+    if response.status_code != HTTPStatus.OK:
+        raise NotOkResponse('Ошибка доступа к API. Код 300 или там 400!')
+    return response.json()
 
 
 def check_response(response):
     """Проверка корректности ответа API. Возврат последней работы."""
-    if type(response) != dict:
-        logger.error('Ответ API - не словарь!')
+    if not isinstance(response, dict):
         raise TypeError('Ответ API - не словарь')
-    elif type(response.get('homeworks')) != list:
-        logger.error('Список домашек - не список!')
+    if not isinstance(response.get('homeworks'), list):
         raise TypeError('Список - не список')
-    elif 'homeworks' not in response:
+    if 'homeworks' not in response:
         logger.error('В ответе API отсутствуют требуемые ключи')
-        raise exceptions.ResponseMissingKey('missing keys')
+        raise ResponseMissingKey('missing keys')
     elif len(response.get('homeworks')) == 0:
         homework = response.get('homeworks')
         return homework

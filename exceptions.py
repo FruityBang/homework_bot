@@ -1,4 +1,12 @@
+class MessageSendingTrouble(Exception):
+    pass
+
+
 class NotOkResponse(Exception):
+    pass
+
+
+class ResponseError(Exception):
     pass
 
 
