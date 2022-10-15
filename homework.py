@@ -42,9 +42,8 @@ def send_message(bot, message):
     try:
         bot.send_message(TELEGRAM_CHAT_ID, message)
     except Exception as error:
-        logger.error(f'Ошибка отправки сообщения в телеграм: {error}')
         raise MessageSendingTrouble(
-            'Ошибка отправки сообщения в телеграм')
+            f'Ошибка отправки сообщения в телеграм: {error}')
     else:
         logger.info('Отправлено сообщение в Телеграм')
 
@@ -55,29 +54,30 @@ def get_api_answer(current_timestamp):
     params = {'from_date': timestamp}
 
     logger.info('Отправка запроса к API')
+
     try:
         response = requests.get(ENDPOINT, headers=HEADERS, params=params)
     except Exception as error:
-        logger.error(f'Ошибка получения ответа API: {error}')
-        raise ResponseError('Ошибка получения ответа API')
+        raise ResponseError(f'Ошибка получения ответа API: {error}')
 
     logger.info('Ответ API получен')
 
     if response.status_code != HTTPStatus.OK:
-        logger.info('yt 200')
-        raise NotOkResponse('Ошибка доступа к API. Код 300 или там 400!')
+        raise NotOkResponse('Ошибка доступа к API. Статус код не равен 200')
+
     return response.json()
 
 
 def check_response(response):
     """Проверка корректности ответа API. Возврат последней работы."""
     logger.info('Проверка корректности ответа API')
+
     if not isinstance(response, dict):
         raise TypeError('Ответ API - не словарь')
 
     homework = response.get('homeworks')
 
-    if 'homeworks' not in response and 'current_date' not in response:
+    if 'homeworks' not in response or 'current_date' not in response:
         raise ResponseMissingKey('missing keys')
 
     if not isinstance(response.get('homeworks'), list):
@@ -119,25 +119,27 @@ def main():
     bot = telegram.Bot(token=TELEGRAM_TOKEN)
     current_timestamp = int(time.time())
     homework = None
+    message = None
+    prev_message = None
 
     while True:
         try:
             response = get_api_answer(current_timestamp)
             homework_updated = check_response(response)
 
-            if len(homework_updated) == 0:
-                logger.debug('ответ пуст')
-            elif homework_updated != homework:
-                homework = homework_updated
-                message = parse_status(homework[0])
-                send_message(bot, message)
+            if homework_updated:
+                message = parse_status(homework_updated[0])
             else:
                 logger.debug('Никаких изменений')
+
+            if message != prev_message:
+                send_message(bot, message)
+                prev_message = message
 
             current_timestamp = response.get('current_date')
 
         except Exception as error:
-            logger.error('ну')
+            logger.error(f'{error}')
             message = f'Сбой в работе программы: {error}'
             send_message(bot, message)
 
